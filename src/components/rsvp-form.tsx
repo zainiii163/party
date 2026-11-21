@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label, FieldError } from "@/components/ui/field";
 import { Confetti } from "@/components/effects/confetti";
 import { parseGuestCount, rsvpSchema } from "@/lib/validation";
+import { RSVP_SUCCESS_EVENT } from "@/lib/events";
 
 type FormValues = z.infer<typeof rsvpSchema>;
 const STEPS = ["Your details", "Attendance", "Preferences", "Confirm"];
@@ -53,6 +54,9 @@ export function RsvpForm({ open }: { open: boolean }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not submit your RSVP");
       setDone({ token: data.token, name: values.nickname });
+      // The API has set the signed participant cookie. Unlock on-page polls
+      // without requiring the visitor to reload the homepage.
+      window.dispatchEvent(new Event(RSVP_SUCCESS_EVENT));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {

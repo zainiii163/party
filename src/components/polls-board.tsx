@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { BarChart3, Check, Loader2, LockKeyhole } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
 import type { PublicPoll } from "@/lib/data";
+import { RSVP_SUCCESS_EVENT } from "@/lib/events";
 
 type VoteMap = Record<string, string[]>;
 
@@ -15,6 +16,16 @@ export function PollsBoard({ initial, myVotes, canVote }: { initial: PublicPoll[
   const [polls, setPolls] = useState(initial);
   const [selected, setSelected] = useState<VoteMap>(myVotes);
   const [pending, setPending] = useState<string | null>(null);
+  // The server value is captured at page load; a successful RSVP on the same
+  // page sets the cookie but cannot re-render this component on its own.
+  const [voteEligible, setVoteEligible] = useState(canVote);
+
+  useEffect(() => {
+    setVoteEligible(canVote);
+    const unlock = () => setVoteEligible(true);
+    window.addEventListener(RSVP_SUCCESS_EVENT, unlock);
+    return () => window.removeEventListener(RSVP_SUCCESS_EVENT, unlock);
+  }, [canVote]);
 
   async function vote(poll: PublicPoll) {
     const optionIds = selected[poll.id] ?? [];
@@ -75,7 +86,7 @@ export function PollsBoard({ initial, myVotes, canVote }: { initial: PublicPoll[
                   <button
                     key={option.id}
                     type="button"
-                    disabled={poll.status !== "OPEN" || !canVote}
+                    disabled={poll.status !== "OPEN" || !voteEligible}
                     onClick={() => setSelected((prev) => ({
                       ...prev,
                       [poll.id]: poll.multiple
@@ -102,7 +113,7 @@ export function PollsBoard({ initial, myVotes, canVote }: { initial: PublicPoll[
 
             <p className="mt-4 text-[11px] text-muted">{total} total vote{total === 1 ? "" : "s"}{!max && " · no votes yet"}</p>
             <div className="mt-auto pt-5">
-              {canVote ? (
+              {voteEligible ? (
                 <Button className="w-full" size="sm" disabled={poll.status !== "OPEN" || pending === poll.id || !chosen.length} onClick={() => vote(poll)}>
                   {pending === poll.id ? <><Loader2 className="animate-spin" /> Saving...</> : chosen.length ? "Cast my vote" : "Pick an option"}
                 </Button>
