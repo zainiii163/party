@@ -8,9 +8,10 @@ import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis
 import { LogOut, Plus, Trash2, Check, X, Save, Crown, Eye, EyeOff, RefreshCw, Upload } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent, Button, Input, Textarea, Label, Switch, Badge } from "@/components/ui/misc-client";
 import { SECTIONS, DEFAULT_SETTINGS } from "@/lib/defaults";
+import { DEFAULT_UNIVERSE_CONFIG, EXPERIENCES, EXPERIENCE_GROUPS } from "@/lib/universe";
 
 type Row = Record<string, any>;
-const TABS = ["overview", "event", "rsvps", "suggestions", "polls", "awards", "photos", "guestbook", "wheel", "settings"] as const;
+const TABS = ["overview", "event", "rsvps", "suggestions", "polls", "awards", "photos", "guestbook", "wheel", "universe", "settings"] as const;
 type Tab = (typeof TABS)[number];
 
 async function adminFetch(resource: string, init?: RequestInit) {
@@ -32,7 +33,7 @@ export function AdminDashboard({ email }: { email: string }) {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const keys = ["overview", "event", "rsvps", "suggestions", "polls", "awards", "photos", "guestbook", "wheel", "settings"];
+      const keys = ["overview", "event", "rsvps", "suggestions", "polls", "awards", "photos", "guestbook", "wheel", "universe", "settings"];
       const results = await Promise.all(keys.map((key) => adminFetch(key).catch((error) => ({ error: error.message }))));
       setData(Object.fromEntries(keys.map((key, i) => [key, results[i]])));
     } finally {
@@ -89,6 +90,7 @@ export function AdminDashboard({ email }: { email: string }) {
           <TabsContent value="photos"><PhotoPanel rows={data.photos?.items} mutate={mutate} onUploaded={reload} /></TabsContent>
           <TabsContent value="guestbook"><GuestbookPanel rows={data.guestbook?.items} mutate={mutate} /></TabsContent>
           <TabsContent value="wheel"><WheelPanel rows={data.wheel?.items} mutate={mutate} /></TabsContent>
+          <TabsContent value="universe"><UniversePanel data={data.universe} mutate={mutate} /></TabsContent>
           <TabsContent value="settings"><SettingsPanel rows={data.settings?.items} mutate={mutate} /></TabsContent>
         </Tabs>
       </div>
@@ -505,6 +507,107 @@ function WheelPanel({ rows, mutate }: { rows?: Row[]; mutate: Mutate }) {
         </div>
       ))}</div> : <Empty text="No activities yet." />}
     </Panel>
+  );
+}
+
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+function UniversePanel({ data, mutate }: { data: any; mutate: Mutate }) {
+  const config = data?.config ?? DEFAULT_UNIVERSE_CONFIG;
+  const [surprises, setSurprises] = useState("");
+  const [reveal, setReveal] = useState({ visible: false, title: "", message: "", unlockAt: "" });
+  const [goal, setGoal] = useState(config.magicGoal ?? DEFAULT_UNIVERSE_CONFIG.magicGoal);
+
+  useEffect(() => {
+    const current = data?.config ?? DEFAULT_UNIVERSE_CONFIG;
+    setSurprises((current.surprises ?? DEFAULT_UNIVERSE_CONFIG.surprises).join("\n"));
+    setReveal({
+      visible: Boolean(current.reveal?.visible),
+      title: current.reveal?.title ?? "",
+      message: current.reveal?.message ?? "",
+      unlockAt: toLocalInput(current.reveal?.unlockAt ?? null),
+    });
+    setGoal(current.magicGoal ?? DEFAULT_UNIVERSE_CONFIG.magicGoal);
+  }, [data]);
+
+  if (!data) return <div className="skeleton h-96 rounded-2xl" />;
+
+  return (
+    <div className="space-y-5">
+      <Panel title="Cousins Universe" description="Switch the whole universe on, or hide individual experiences instantly.">
+        <div className="mb-6 flex items-center justify-between rounded-xl border border-gold/20 bg-gold/5 p-4">
+          <div><p className="text-sm font-medium text-champagne">Universe visible to family</p><p className="text-xs text-muted">Turning this off hides the section without touching any other feature.</p></div>
+          <Switch checked={config.enabled !== false} onCheckedChange={(v) => mutate("universe", "PATCH", { action: "global", enabled: v }, "Universe visibility updated")} />
+        </div>
+        <div className="space-y-5">
+          {EXPERIENCE_GROUPS.map((group) => (
+            <div key={group}>
+              <p className="eyebrow mb-2">{group}</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {EXPERIENCES.filter((e) => e.group === group).map((experience) => (
+                  <label key={experience.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/3 px-3 py-2.5">
+                    <span className="min-w-0 text-xs text-foreground"><span className="mr-2">{experience.emoji}</span>{experience.title}</span>
+                    <Switch checked={config.experiences?.[experience.id] !== false}
+                      onCheckedChange={(v) => mutate("universe", "PATCH", { action: "toggle", id: experience.id, enabled: v }, "Experience updated")} />
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Daily surprises" description="One line per surprise. Plain text only — links and markup are rejected.">
+        <Textarea value={surprises} onChange={(e) => setSurprises(e.target.value)} rows={7} className="font-mono text-xs" />
+        <Button className="mt-4" onClick={() => mutate("universe", "PATCH", {
+          action: "surprises", surprises: surprises.split("\n").map((s) => s.trim()).filter(Boolean),
+        }, "Surprises saved")}><Save /> Save surprises</Button>
+      </Panel>
+
+      <Panel title="Surprise reveal & midnight message" description="Control what appears when the family reaches the big reveal.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2"><Label>Visible to everyone</Label><Switch checked={reveal.visible}
+            onCheckedChange={(v) => setReveal((prev) => ({ ...prev, visible: v }))} /></div>
+          <div className="sm:col-span-2"><Label>Reveal title</Label><Input value={reveal.title} maxLength={100}
+            onChange={(e) => setReveal((prev) => ({ ...prev, title: e.target.value }))} /></div>
+          <div className="sm:col-span-2"><Label>Reveal message</Label><Textarea value={reveal.message} maxLength={400} rows={3}
+            onChange={(e) => setReveal((prev) => ({ ...prev, message: e.target.value }))} /></div>
+          <div><Label>Unlock date & time (optional)</Label><Input type="datetime-local" value={reveal.unlockAt}
+            onChange={(e) => setReveal((prev) => ({ ...prev, unlockAt: e.target.value }))} /></div>
+        </div>
+        <Button className="mt-5" onClick={() => mutate("universe", "PATCH", {
+          action: "reveal", ...reveal,
+          unlockAt: reveal.unlockAt ? new Date(reveal.unlockAt).toISOString() : null,
+        }, "Reveal updated")}><Save /> Save reveal</Button>
+      </Panel>
+
+      <Panel title="Community magic meter" description="Taps from cousins who are present add a point. One tap per visitor per hour.">
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge>{data.magicCount ?? 0} magic points</Badge>
+          <Input type="number" min={10} max={100000} value={goal} className="w-36"
+            onChange={(e) => setGoal(Number(e.target.value))} aria-label="Magic goal" />
+          <Button onClick={() => mutate("universe", "PATCH", { action: "goal", magicGoal: goal }, "Goal updated")}><Save /> Save goal</Button>
+          <Button variant="outline" onClick={() => mutate("universe", "PATCH", { action: "resetMagic" }, "Magic meter reset")}>Reset meter</Button>
+        </div>
+      </Panel>
+
+      <Panel title="Reported content" description="Reports are anonymous counts with a reason only — no free text or personal details.">
+        {(data.reports ?? []).length ? <div className="space-y-2">{(data.reports as Row[]).map((report) => (
+          <div key={report.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 p-3">
+            <div className="text-xs text-muted"><Badge>{report.reason}</Badge> <span className="ml-2">{report.experienceId}</span>
+              <span className="ml-2">{new Date(report.createdAt).toLocaleString()}</span>
+              {report.status === "DISMISSED" && <span className="ml-2 text-success">Dismissed</span>}
+            </div>
+            {report.status === "OPEN" && <Button size="sm" variant="ghost" onClick={() => mutate("universe", "PATCH", { action: "dismissReport", id: report.id }, "Report dismissed")}><Check /> Dismiss</Button>}
+          </div>
+        ))}</div> : <Empty text="No reports. The universe is behaving itself." />}
+      </Panel>
+    </div>
   );
 }
 

@@ -1,3 +1,5 @@
+import { DEFAULT_UNIVERSE_CONFIG } from "./universe";
+
 export const SECTIONS = [
   { key: "home", label: "Home" },
   { key: "event", label: "Event" },
@@ -8,6 +10,7 @@ export const SECTIONS = [
   { key: "plan", label: "The Plan" },
   { key: "awards", label: "Awards" },
   { key: "fun", label: "Fun Zone" },
+  { key: "universe", label: "Universe" },
   { key: "memories", label: "Memories" },
   { key: "guestbook", label: "Guestbook" },
 ] as const;
@@ -26,6 +29,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   wheelEnabled: "true",
   galleryEnabled: "true",
   registrationLimit: "0",
+  universeEnabled: "true",
+  universeConfig: JSON.stringify(DEFAULT_UNIVERSE_CONFIG),
+  universeMagicCount: "0",
+  universeReports: "[]",
   ...Object.fromEntries(SECTIONS.map((s) => [`section_${s.key}`, "true"])),
 };
 

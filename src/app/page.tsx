@@ -9,6 +9,7 @@ import { PollsSection } from "@/components/sections/polls-section";
 import { PlanSection } from "@/components/sections/plan-section";
 import { AwardsSection } from "@/components/sections/awards-section";
 import { FunSection } from "@/components/sections/fun-section";
+import { UniverseSection } from "@/components/universe/universe-section";
 import { MemoriesSection } from "@/components/sections/memories-section";
 import { GuestbookSection } from "@/components/sections/guestbook-section";
 import { InviteCardSection } from "@/components/sections/invite-card-section";
@@ -36,6 +37,7 @@ export default async function Home() {
         {enabled.includes("plan") && settings.planEnabled === "true" && <PlanSection decisions={decisions} event={event} />}
         {enabled.includes("awards") && <AwardsSection />}
         {enabled.includes("fun") && <FunSection />}
+        {enabled.includes("universe") && <UniverseSection />}
         {enabled.includes("memories") && settings.galleryEnabled === "true" && <MemoriesSection />}
         {enabled.includes("guestbook") && <GuestbookSection />}
         <InviteCardSection />

@@ -5,6 +5,7 @@ import { Snowfall } from "@/components/effects/snowfall";
 import { InvitationGate } from "@/components/invitation-gate";
 import { MotionProvider } from "@/components/effects/motion-provider";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { UniverseCelebration } from "@/components/universe/celebration-overlay";
 import "./globals.css";
 
 const inter = localFont({
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           {children}
           <Toaster />
           <ScrollToTop />
+          <UniverseCelebration />
         </MotionProvider>
       </body>
     </html>

@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
 import { badRequest, parseError, sameOrigin } from "@/lib/http";
-import { eventSchema, photoMetaSchema } from "@/lib/validation";
+import { eventSchema, photoMetaSchema, universeAdminSchema } from "@/lib/validation";
+import { parseReports, parseUniverseConfig } from "@/lib/universe";
 import { getPendingCounts, getStats } from "@/lib/data";
 import { removeImage } from "@/lib/blob";
 import { sanitizeAdminPhoto } from "@/lib/photo-security";
@@ -59,6 +60,17 @@ export async function GET(request: Request, { params }: Ctx) {
         return NextResponse.json({ items: await prisma.guestbookMessage.findMany({ orderBy: { createdAt: "desc" } }) });
       case "settings":
         return NextResponse.json({ items: await prisma.appSetting.findMany() });
+      case "universe": {
+        const rows = await prisma.appSetting.findMany({
+          where: { key: { in: ["universeConfig", "universeMagicCount", "universeReports"] } },
+        });
+        const values = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+        return NextResponse.json({
+          config: parseUniverseConfig(values.universeConfig),
+          magicCount: Math.max(0, Number(values.universeMagicCount) || 0),
+          reports: parseReports(values.universeReports),
+        });
+      }
       case "wheel":
         return NextResponse.json({ items: await prisma.wheelActivity.findMany({ orderBy: { order: "asc" } }) });
       default:
@@ -288,6 +300,61 @@ export async function PATCH(request: Request, { params }: Ctx) {
           await prisma.wheelActivity.update({ where: { id }, data: { enabled: action === "enable" } });
         } else {
           await prisma.wheelActivity.update({ where: { id }, data: { label: String(body.label), enabled: Boolean(body.enabled) } });
+        }
+        return NextResponse.json({ ok: true });
+      }
+      case "universe": {
+        const input = universeAdminSchema.parse(body);
+        const setValue = (key: string, value: string) =>
+          prisma!.appSetting.upsert({ where: { key }, create: { key, value }, update: { value } });
+
+        switch (input.action) {
+          case "global": {
+            const current = await prisma.appSetting.findUnique({ where: { key: "universeConfig" } });
+            const config = parseUniverseConfig(current?.value);
+            await setValue("universeConfig", JSON.stringify({ ...config, enabled: input.enabled }));
+            break;
+          }
+          case "toggle": {
+            const current = await prisma.appSetting.findUnique({ where: { key: "universeConfig" } });
+            const config = parseUniverseConfig(current?.value);
+            await setValue("universeConfig", JSON.stringify({
+              ...config, experiences: { ...config.experiences, [input.id]: input.enabled },
+            }));
+            break;
+          }
+          case "surprises": {
+            const current = await prisma.appSetting.findUnique({ where: { key: "universeConfig" } });
+            const config = parseUniverseConfig(current?.value);
+            await setValue("universeConfig", JSON.stringify({ ...config, surprises: input.surprises }));
+            break;
+          }
+          case "reveal": {
+            const current = await prisma.appSetting.findUnique({ where: { key: "universeConfig" } });
+            const config = parseUniverseConfig(current?.value);
+            const unlockAt = input.unlockAt && !Number.isNaN(Date.parse(input.unlockAt))
+              ? new Date(input.unlockAt).toISOString() : null;
+            await setValue("universeConfig", JSON.stringify({
+              ...config, reveal: { visible: input.visible, title: input.title, message: input.message, unlockAt },
+            }));
+            break;
+          }
+          case "goal": {
+            const current = await prisma.appSetting.findUnique({ where: { key: "universeConfig" } });
+            const config = parseUniverseConfig(current?.value);
+            await setValue("universeConfig", JSON.stringify({ ...config, magicGoal: input.magicGoal }));
+            break;
+          }
+          case "resetMagic":
+            await setValue("universeMagicCount", "0");
+            break;
+          case "dismissReport": {
+            const current = await prisma.appSetting.findUnique({ where: { key: "universeReports" } });
+            const reports = parseReports(current?.value).map((r) =>
+              r.id === input.id ? { ...r, status: "DISMISSED" as const } : r);
+            await setValue("universeReports", JSON.stringify(reports));
+            break;
+          }
         }
         return NextResponse.json({ ok: true });
       }

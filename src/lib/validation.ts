@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EXPERIENCE_IDS, REPORT_REASONS, isSafeCustomText } from "./universe";
 
 export const attendanceSchema = z.enum(["YES", "MAYBE", "NO"]);
 export const categories = [
@@ -73,6 +74,28 @@ export function parseGuestCount(value: unknown): number {
   if (typeof value === "number") return value;
   return Number(value);
 }
+
+/** Public actions: tightly whitelisted so no free text can enter the Universe. */
+export const universeActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("magic"), source: z.enum(EXPERIENCE_IDS) }),
+  z.object({ action: z.literal("report"), experienceId: z.enum(EXPERIENCE_IDS), reason: z.enum(REPORT_REASONS) }),
+]);
+
+const safeText = z.string().refine(isSafeCustomText, "Use short, plain text with no links or markup.");
+
+export const universeAdminSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("toggle"), id: z.enum(EXPERIENCE_IDS), enabled: z.boolean() }),
+  z.object({ action: z.literal("global"), enabled: z.boolean() }),
+  z.object({ action: z.literal("surprises"), surprises: z.array(safeText).min(1).max(24) }),
+  z.object({
+    action: z.literal("reveal"), visible: z.boolean(),
+    title: safeText, message: safeText,
+    unlockAt: z.string().nullable().refine((v) => v === null || !Number.isNaN(Date.parse(v)), "Use a valid date."),
+  }),
+  z.object({ action: z.literal("goal"), magicGoal: z.number().int().min(10).max(100000) }),
+  z.object({ action: z.literal("dismissReport"), id: z.string().min(1).max(100) }),
+  z.object({ action: z.literal("resetMagic") }),
+]);
 
 export const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"] as const;

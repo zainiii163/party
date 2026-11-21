@@ -56,7 +56,7 @@ export function RsvpForm({ open }: { open: boolean }) {
       setDone({ token: data.token, name: values.nickname });
       // The API has set the signed participant cookie. Unlock on-page polls
       // without requiring the visitor to reload the homepage.
-      window.dispatchEvent(new Event(RSVP_SUCCESS_EVENT));
+      window.dispatchEvent(new CustomEvent(RSVP_SUCCESS_EVENT, { detail: { nickname: values.nickname } }));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
