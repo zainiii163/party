@@ -27,7 +27,7 @@ export function Snowfall() {
       {flakes.map((flake, i) => (
         <span
           key={i}
-          className="absolute top-[-5%] rounded-full bg-white/70"
+          className="snowflake absolute top-[-5%] rounded-full bg-white/70"
           style={{
             left: flake.left,
             width: flake.size,

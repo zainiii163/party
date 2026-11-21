@@ -3,6 +3,8 @@ import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/toaster";
 import { Snowfall } from "@/components/effects/snowfall";
 import { InvitationGate } from "@/components/invitation-gate";
+import { MotionProvider } from "@/components/effects/motion-provider";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import "./globals.css";
 
 const inter = localFont({
@@ -52,10 +54,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body className="antialiased">
-        <Snowfall />
-        <InvitationGate />
-        {children}
-        <Toaster />
+        <MotionProvider>
+          <Snowfall />
+          <InvitationGate />
+          {children}
+          <Toaster />
+          <ScrollToTop />
+        </MotionProvider>
       </body>
     </html>
   );

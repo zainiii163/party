@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { BarChart3, Check, Loader2, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
+import { Confetti } from "@/components/effects/confetti";
 import { cn } from "@/lib/utils";
 import type { PublicPoll } from "@/lib/data";
 import { RSVP_SUCCESS_EVENT } from "@/lib/events";
@@ -16,6 +17,7 @@ export function PollsBoard({ initial, myVotes, canVote }: { initial: PublicPoll[
   const [polls, setPolls] = useState(initial);
   const [selected, setSelected] = useState<VoteMap>(myVotes);
   const [pending, setPending] = useState<string | null>(null);
+  const [celebration, setCelebration] = useState<{ pollId: string; key: number } | null>(null);
   // The server value is captured at page load; a successful RSVP on the same
   // page sets the cookie but cannot re-render this component on its own.
   const [voteEligible, setVoteEligible] = useState(canVote);
@@ -43,6 +45,7 @@ export function PollsBoard({ initial, myVotes, canVote }: { initial: PublicPoll[
         ? { ...p, options: p.options.map((o) => ({ ...o, votes: json.votes[o.id] ?? o.votes })) }
         : p));
       setSelected((prev) => ({ ...prev, [poll.id]: json.selected }));
+      setCelebration({ pollId: poll.id, key: Date.now() });
       toast.success("Your vote has been counted!");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save your vote");
@@ -69,7 +72,8 @@ export function PollsBoard({ initial, myVotes, canVote }: { initial: PublicPoll[
         const max = Math.max(...poll.options.map((o) => o.votes), 0);
         return (
           <motion.article key={poll.id} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: pollIndex * 0.08 }}
-            className="glass flex flex-col rounded-2xl p-6">
+            className="glass relative flex flex-col overflow-hidden rounded-2xl p-6">
+            {celebration?.pollId === poll.id && <Confetti key={celebration.key} pieces={18} />}
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="eyebrow">{poll.category ?? "Family poll"}</p>

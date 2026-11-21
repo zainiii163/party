@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { X, ChevronLeft, ChevronRight, ImagePlus, Loader2, LockKeyhole, Camera } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ImagePlus, Loader2, LockKeyhole, Camera, ZoomIn, ZoomOut } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
@@ -15,16 +15,29 @@ export function MemoryGallery({
 }: { photos: PublicPhoto[]; categories: { id: string; name: string }[]; canUpload: boolean; hasStorage: boolean }) {
   const [filter, setFilter] = useState("All");
   const [active, setActive] = useState<number | null>(null);
+  const [zoomed, setZoomed] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const touchX = useRef<number | null>(null);
 
   const visible = useMemo(() => photos.filter((p) => filter === "All" || p.categoryName === filter), [photos, filter]);
 
-  function move(direction: number) {
-    if (active === null || !visible.length) return;
-    setActive((active + direction + visible.length) % visible.length);
-  }
+  const move = useCallback((direction: number) => {
+    setActive((current) => current === null || !visible.length ? current : (current + direction + visible.length) % visible.length);
+  }, [visible.length]);
+
+  useEffect(() => setZoomed(false), [active]);
+
+  useEffect(() => {
+    if (active === null) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "ArrowRight") { event.preventDefault(); move(1); }
+      if (event.key === "ArrowLeft") { event.preventDefault(); move(-1); }
+      if (event.key.toLowerCase() === "z") setZoomed((value) => !value);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [active, move]);
 
   async function upload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,17 +150,34 @@ export function MemoryGallery({
                 touchX.current = null;
               }}
             >
+              <span className="absolute left-2 top-2 z-10 rounded-full bg-[#081426]/85 px-3 py-1 text-[11px] tabular-nums text-champagne">
+                {active + 1} / {visible.length}
+              </span>
               <AnimatePresence mode="wait">
                 <motion.div key={visible[active].id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={visible[active].imageUrl} alt={visible[active].caption} className="mx-auto max-h-[70vh] w-auto rounded-xl object-contain" />
+                  <div className={cn("rounded-xl", zoomed && "max-h-[70vh] overflow-auto")}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={visible[active].imageUrl}
+                      alt={visible[active].caption}
+                      onClick={() => setZoomed((value) => !value)}
+                      className={cn(
+                        "mx-auto rounded-xl object-contain transition-all duration-300",
+                        zoomed ? "w-[160%] max-w-none cursor-zoom-out" : "max-h-[70vh] w-auto cursor-zoom-in",
+                      )}
+                    />
+                  </div>
                   <p className="mt-4 text-center font-display text-lg text-champagne">{visible[active].caption}</p>
                   <p className="text-center text-[11px] text-muted">{visible[active].categoryName} · {formatShortDate(visible[active].createdAt)}</p>
+                  <p className="mt-1 text-center text-[10px] text-muted/60">← → to browse · Z or click to zoom</p>
                 </motion.div>
               </AnimatePresence>
-              <button onClick={() => move(-1)} aria-label="Previous photo" className="absolute left-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-[#081426]/80 text-champagne transition hover:bg-gold/25"><ChevronLeft className="size-5" /></button>
-              <button onClick={() => move(1)} aria-label="Next photo" className="absolute right-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-[#081426]/80 text-champagne transition hover:bg-gold/25"><ChevronRight className="size-5" /></button>
-              <button onClick={() => setActive(null)} aria-label="Close gallery" className="absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-[#081426]/80 text-champagne"><X className="size-5" /></button>
+              <button onClick={() => move(-1)} aria-label="Previous photo" className="absolute left-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-[#081426]/80 text-champagne transition hover:bg-gold/25"><ChevronLeft className="size-5" /></button>
+              <button onClick={() => move(1)} aria-label="Next photo" className="absolute right-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-[#081426]/80 text-champagne transition hover:bg-gold/25"><ChevronRight className="size-5" /></button>
+              <button onClick={() => setZoomed((value) => !value)} aria-label={zoomed ? "Zoom out" : "Zoom in"} className="absolute right-12 top-2 z-10 grid size-9 place-items-center rounded-full bg-[#081426]/80 text-champagne transition hover:bg-gold/25">
+                {zoomed ? <ZoomOut className="size-4" /> : <ZoomIn className="size-4" />}
+              </button>
+              <button onClick={() => setActive(null)} aria-label="Close gallery" className="absolute right-2 top-2 z-10 grid size-9 place-items-center rounded-full bg-[#081426]/80 text-champagne transition hover:bg-gold/25"><X className="size-5" /></button>
             </div>
           </DialogContent>
         )}
