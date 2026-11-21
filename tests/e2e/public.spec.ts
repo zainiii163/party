@@ -41,6 +41,19 @@ test("RSVP form shows friendly validation without a database", async ({ page }) 
   await expect(page.getByText(/Please enter your full name/i)).toBeVisible();
 });
 
+test("RSVP guest count accepts a typed number", async ({ page }) => {
+  await hideInvitationGate(page);
+  await page.goto("/");
+  await page.getByRole("heading", { name: /Save Your Seat/i }).scrollIntoViewIfNeeded();
+  await page.getByLabel("Full name").fill("Ayesha Khan");
+  await page.getByLabel("What should we call you?").fill("Ayesh");
+  await page.getByRole("button", { name: /Continue/i }).click();
+  await page.getByLabel("How many guests will accompany you?").fill("1");
+  await page.getByRole("button", { name: /Continue/i }).click();
+  await expect(page.getByText("Favourite food")).toBeVisible();
+  await expect(page.getByText(/expected number, received string/i)).toHaveCount(0);
+});
+
 test("fun wheel selects an activity", async ({ page }) => {
   await hideInvitationGate(page);
   await page.goto("/");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guestbookSchema, MAX_IMAGE_BYTES, rsvpSchema, suggestionSchema, validateImage } from "@/lib/validation";
+import { guestbookSchema, MAX_IMAGE_BYTES, parseGuestCount, rsvpSchema, suggestionSchema, validateImage } from "@/lib/validation";
 
 describe("validation schemas", () => {
   it("accepts a complete RSVP and rejects bad attendance", () => {
@@ -24,6 +24,15 @@ describe("validation schemas", () => {
     expect(guestbookSchema.safeParse({ nickname: "A", message: "Love you all!" }).success).toBe(true);
     expect(guestbookSchema.safeParse({ nickname: "A", message: "   " }).success).toBe(false);
     expect(guestbookSchema.safeParse({ nickname: "A", message: "x".repeat(501) }).success).toBe(false);
+  });
+
+  it("converts HTML number input values before RSVP validation", () => {
+    expect(parseGuestCount("1")).toBe(1);
+    expect(parseGuestCount("12")).toBe(12);
+    expect(parseGuestCount("")).toBe(0);
+    expect(rsvpSchema.safeParse({
+      fullName: "Ayesha Khan", nickname: "Ayesh", attendance: "YES", guests: parseGuestCount("1"), consentPublic: true,
+    }).success).toBe(true);
   });
 
   it("validates image type and size", () => {

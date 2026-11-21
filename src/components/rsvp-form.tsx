@@ -10,7 +10,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2, Copy, Sparkles, PartyPopper } fr
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label, FieldError } from "@/components/ui/field";
 import { Confetti } from "@/components/effects/confetti";
-import { rsvpSchema } from "@/lib/validation";
+import { parseGuestCount, rsvpSchema } from "@/lib/validation";
 
 type FormValues = z.infer<typeof rsvpSchema>;
 const STEPS = ["Your details", "Attendance", "Preferences", "Confirm"];
@@ -154,7 +154,7 @@ export function RsvpForm({ open }: { open: boolean }) {
               </fieldset>
               <div>
                 <Label htmlFor="guests">How many guests will accompany you?</Label>
-                <Input id="guests" type="number" min={0} max={12} {...register("guests")} />
+                <Input id="guests" type="number" min={0} max={12} {...register("guests", { setValueAs: parseGuestCount })} />
                 <FieldError>{errors.guests?.message}</FieldError>
                 <p className="mt-1.5 text-[11px] text-muted">Children and partners count as guests.</p>
               </div>

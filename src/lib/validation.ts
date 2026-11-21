@@ -67,6 +67,13 @@ export const eventSchema = z.object({
   description: z.string().trim().max(1200),
 });
 
+/** HTML number inputs return strings; convert them before Zod validation. An empty field means zero guests. */
+export function parseGuestCount(value: unknown): number {
+  if (value === "" || value === null || value === undefined) return 0;
+  if (typeof value === "number") return value;
+  return Number(value);
+}
+
 export const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"] as const;
 

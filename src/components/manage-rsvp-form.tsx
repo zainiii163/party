@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Check, Loader2, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label, FieldError } from "@/components/ui/field";
-import { rsvpUpdateSchema } from "@/lib/validation";
+import { parseGuestCount, rsvpUpdateSchema } from "@/lib/validation";
 
 type Values = z.infer<typeof rsvpUpdateSchema>;
 
@@ -61,7 +61,7 @@ export function ManageRsvpForm({ token, initial }: { token: string; initial: Ini
         </div>
         <div>
           <Label htmlFor="m-guests">Accompanying guests</Label>
-          <Input id="m-guests" type="number" min={0} max={12} {...register("guests")} />
+          <Input id="m-guests" type="number" min={0} max={12} {...register("guests", { setValueAs: parseGuestCount })} />
           <FieldError>{errors.guests?.message}</FieldError>
         </div>
         <div className="sm:col-span-2">
