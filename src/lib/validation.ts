@@ -80,3 +80,29 @@ export function validateImage(file: File): { ok: true } | { ok: false; error: st
   if (file.size === 0) return { ok: false, error: "The image is empty." };
   return { ok: true };
 }
+
+type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
+
+function matchesAscii(bytes: Uint8Array, offset: number, value: string): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    if (bytes[offset + i] !== value.charCodeAt(i)) return false;
+  }
+  return true;
+}
+
+const IMAGE_SIGNATURES: Record<AllowedImageType, (bytes: Uint8Array) => boolean> = {
+  "image/jpeg": (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  "image/png": (b) => matchesAscii(b, 1, "PNG") && b[0] === 0x89 && b[4] === 0x0d && b[5] === 0x0a && b[6] === 0x1a && b[7] === 0x0a,
+  "image/webp": (b) => matchesAscii(b, 0, "RIFF") && matchesAscii(b, 8, "WEBP"),
+  "image/avif": (b) => matchesAscii(b, 4, "ftyp") && ["avif", "avis", "mif1", "msf1"].some((brand) => matchesAscii(b, 8, brand)),
+};
+
+/** Sniff the real bytes so a renamed script/HTML file cannot pass as an image. */
+export async function validateImageContent(file: File): Promise<{ ok: true; contentType: AllowedImageType } | { ok: false; error: string }> {
+  const contentType = file.type as AllowedImageType;
+  const matches = IMAGE_SIGNATURES[contentType];
+  if (!matches) return { ok: false, error: "Only JPG, PNG, WebP or AVIF images are allowed." };
+  const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  if (!matches(header)) return { ok: false, error: "The file contents do not match its image type." };
+  return { ok: true, contentType };
+}

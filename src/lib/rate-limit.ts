@@ -1,6 +1,5 @@
 import { prisma } from "./db";
-
-const memory = new Map<string, number[]>();
+import { checkInMemoryRateLimit } from "./in-memory-rate-limit";
 
 export async function checkRateLimit(
   key: string,
@@ -22,9 +21,5 @@ export async function checkRateLimit(
       // Fail open for availability; validation and moderation still apply.
     }
   }
-  const hits = (memory.get(key) ?? []).filter((time) => time > now - windowMs);
-  if (hits.length >= limit) return { ok: false, remaining: 0, retryAfter: Math.ceil(windowMs / 1000) };
-  hits.push(now);
-  memory.set(key, hits);
-  return { ok: true, remaining: limit - hits.length, retryAfter: 0 };
+  return checkInMemoryRateLimit(key, limit, windowMs, now);
 }

@@ -6,6 +6,7 @@ import { badRequest, parseError, sameOrigin } from "@/lib/http";
 import { eventSchema, photoMetaSchema } from "@/lib/validation";
 import { getPendingCounts, getStats } from "@/lib/data";
 import { removeImage } from "@/lib/blob";
+import { sanitizeAdminPhoto } from "@/lib/photo-security";
 
 export const runtime = "nodejs";
 
@@ -47,8 +48,13 @@ export async function GET(request: Request, { params }: Ctx) {
         return NextResponse.json({ items: await prisma.poll.findMany({ orderBy: { createdAt: "desc" }, include: { options: { include: { _count: { select: { votes: true } } } } } }) });
       case "awards":
         return NextResponse.json({ items: await prisma.awardCategory.findMany({ orderBy: { order: "asc" }, include: { nominees: true, _count: { select: { votes: true } } } }) });
-      case "photos":
-        return NextResponse.json({ items: await prisma.memoryPhoto.findMany({ orderBy: { createdAt: "desc" }, include: { category: true } }) });
+      case "photos": {
+        const items = await prisma.memoryPhoto.findMany({ orderBy: { createdAt: "desc" }, include: { category: true } });
+        return NextResponse.json(
+          { items: items.map(sanitizeAdminPhoto) },
+          { headers: { "Cache-Control": "private, no-store" } },
+        );
+      }
       case "guestbook":
         return NextResponse.json({ items: await prisma.guestbookMessage.findMany({ orderBy: { createdAt: "desc" } }) });
       case "settings":

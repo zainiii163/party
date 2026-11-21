@@ -59,7 +59,8 @@ See `.env.example`.
 | `SESSION_SECRET` | Yes in production | HMAC key for signed session/participant cookies (≥ 16 chars, use ≥ 32) |
 | `ADMIN_EMAIL` | First-run | Organizer email bootstrap |
 | `ADMIN_INITIAL_PASSWORD` | First-run | Temporary organizer password bootstrap (≥ 8 chars) |
-| `BLOB_READ_WRITE_TOKEN` | For photos | Vercel Blob private store token |
+| `BLOB_READ_WRITE_TOKEN` | For photos (option A) | Vercel Blob private store read/write token |
+| `BLOB_STORE_ID` + `VERCEL_OIDC_TOKEN` | For photos (option B) | Injected by Vercel when a Blob store is connected; OIDC takes precedence over the token. See `DEPLOYMENT_CHECKLIST.md` |
 | `NEXT_PUBLIC_SITE_URL` | Yes in production | Public origin for metadata and sharing |
 
 Secrets are never sent to the browser. Only `NEXT_PUBLIC_SITE_URL` is public by design.
@@ -98,7 +99,7 @@ The Prisma schema contains all indexes, unique constraints, moderation statuses 
 2. Import the project into Vercel; framework auto-detection should select Next.js.
 3. Add every variable from `.env.example` under **Project → Settings → Environment Variables**.
 4. Use Neon's pooled URL for `DATABASE_URL`; use the direct URL for `DIRECT_URL`.
-5. Create a private Vercel Blob store and set `BLOB_READ_WRITE_TOKEN` if you want photo uploads.
+5. Create a private Vercel Blob store if you want photo uploads. Connect it to the Vercel project for OIDC auth, or set `BLOB_READ_WRITE_TOKEN` (details in `DEPLOYMENT_CHECKLIST.md`).
 6. Set `NEXT_PUBLIC_SITE_URL` to the final deployment origin (no trailing slash).
 7. Deploy. After the first deployment, run `npm run db:migrate`, `npm run db:seed` and `npm run admin:create locally against the same Neon database` (or use Vercel's terminal/CLI with the same env vars).
 8. Verify the live URL and the organizer login before sharing the invitation.
@@ -115,7 +116,7 @@ No VPS, Docker, Redis, Firebase, Supabase or separate Express server is required
 - **Suggestions/upvotes**: a signed, HttpOnly visitor cookie plus a DB unique constraint prevent casual repeat voting. **Anonymous voting cannot be perfectly one-person-one-vote** (clearing cookies or changing browsers can bypass it); this limitation is shown in the UI and documented here rather than overstated.
 - **Rate limiting**: durable Neon-backed counter table with an in-memory fallback for local preview. Suggestions, votes, guestbook, uploads, RSVP and login endpoints are limited.
 - **CSRF**: same-origin checks on JSON mutation route handlers; Next.js Server Actions would provide their own origin checks. Cookies are SameSite=Lax.
-- **Photos**: uploaded as **private** Vercel Blob objects. Only `/api/media/[id]` streams approved images; pending URLs are never returned publicly. Browser-side re-encoding strips EXIF/metadata before upload. File type and size are revalidated server-side.
+- **Photos**: uploaded as **private** Vercel Blob objects (token or Vercel OIDC auth; no public-storage fallback). Only `/api/media/[id]` streams images — approved photos to everyone, pending/rejected only to organizers. Raw Blob URLs are stripped from admin API responses, media responses are `no-store`, and reads are rate limited. Browser-side re-encoding strips EXIF; file type, size and magic bytes are revalidated server-side. Uploads require an admin session or an existing registered participant and same-origin request.
 - **Text**: all user content is rendered as plain text; no HTML is accepted or executed. Zod validates every mutation server-side.
 - **Headers**: `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`; `noindex` on admin and private RSVP routes.
 
@@ -159,7 +160,7 @@ Playwright specs live in `tests/e2e/public.spec.ts` and cover navigation, the in
 The Neon production database is connected, migrated, seeded and has an organizer account. Remaining items before going live:
 
 - Set the Vercel production environment variables (see `DEPLOYMENT_CHECKLIST.md`), especially `SESSION_SECRET`, `NEXT_PUBLIC_SITE_URL` and the pooled/direct Neon URLs.
-- Create a private Vercel Blob store and set `BLOB_READ_WRITE_TOKEN` if photo uploads are required.
+- Create a private Vercel Blob store and configure either the token or Vercel OIDC auth if photo uploads are required.
 - Push and deploy only after explicit approval; no live URL is claimed yet.
 
 ---

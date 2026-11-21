@@ -7,6 +7,8 @@ const envSchema = z.object({
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_INITIAL_PASSWORD: z.string().min(8).optional(),
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  BLOB_STORE_ID: z.string().min(1).optional(),
+  VERCEL_OIDC_TOKEN: z.string().min(1).optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
   NODE_ENV: z.string().optional(),
 });
@@ -20,12 +22,21 @@ export const env = parsed.success ? parsed.data : {
   ADMIN_EMAIL: undefined,
   ADMIN_INITIAL_PASSWORD: undefined,
   BLOB_READ_WRITE_TOKEN: undefined,
+  BLOB_STORE_ID: undefined,
+  VERCEL_OIDC_TOKEN: undefined,
   NEXT_PUBLIC_SITE_URL: undefined,
   NODE_ENV: process.env.NODE_ENV,
 };
 
 export const hasDatabase = Boolean(env.DATABASE_URL);
-export const hasBlobStorage = Boolean(env.BLOB_READ_WRITE_TOKEN);
+
+/**
+ * @vercel/blob 2.x accepts either a read/write token or Vercel OIDC plus a store
+ * id. Both paths stay private; there is deliberately no public-storage fallback.
+ */
+export const hasBlobOidc = Boolean(env.BLOB_STORE_ID && env.VERCEL_OIDC_TOKEN);
+export const hasBlobToken = Boolean(env.BLOB_READ_WRITE_TOKEN);
+export const hasBlobStorage = hasBlobToken || hasBlobOidc;
 export const siteUrl = env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 let ephemeralSecret: string | undefined;

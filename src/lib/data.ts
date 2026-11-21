@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { photoMediaPath } from "./photo-security";
 import {
   DEFAULT_DECISIONS, DEFAULT_EVENT, DEFAULT_POLLS, DEFAULT_SCHEDULE,
   DEFAULT_SETTINGS, DEFAULT_WHEEL, SECTIONS, type SectionKey,
@@ -206,7 +207,7 @@ export async function getPhotos(): Promise<PublicPhoto[]> {
     [],
   );
   return rows.map((p) => ({
-    id: p.id, imageUrl: `/api/media/${p.id}`, caption: p.caption, uploader: p.uploader,
+    id: p.id, imageUrl: photoMediaPath(p.id), caption: p.caption, uploader: p.uploader,
     createdAt: iso(p.createdAt)!, categoryName: p.category?.name ?? "Memories", categoryId: p.categoryId,
   }));
 }

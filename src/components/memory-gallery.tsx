@@ -68,7 +68,7 @@ export function MemoryGallery({
 
       {canUpload && !hasStorage && (
         <p className="mb-6 rounded-xl border border-gold/20 bg-gold/5 p-4 text-center text-xs text-muted">
-          Photo uploads need Vercel Blob storage. Add <code className="text-champagne">BLOB_READ_WRITE_TOKEN</code> to enable them.
+          Photo uploads need a private Vercel Blob store. Ask the organizer to connect one.
         </p>
       )}
       {canUpload && hasStorage && showUpload && (

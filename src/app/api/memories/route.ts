@@ -6,7 +6,7 @@ import { blobConfigured, uploadPrivateImage } from "@/lib/blob";
 import { badRequest, parseError, sameOrigin } from "@/lib/http";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/request";
-import { photoMetaSchema, validateImage } from "@/lib/validation";
+import { photoMetaSchema, validateImage, validateImageContent } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -15,6 +15,12 @@ export async function POST(request: Request) {
   const admin = await getAdminSession();
   const participantId = admin ? null : await getRegisteredParticipantId();
   if (!admin && !participantId) return badRequest("Please RSVP first to share a memory.", 403);
+  if (!prisma) return badRequest("Database is not configured.", 503);
+  // A signed cookie is not enough on its own: the participant must still exist.
+  if (!admin) {
+    const participant = await prisma.participant.findUnique({ where: { id: participantId! }, select: { id: true } });
+    if (!participant) return badRequest("Please RSVP first to share a memory.", 403);
+  }
   const rate = await checkRateLimit(`memory:${clientIp(request)}`, 8, 60 * 60 * 1000);
   if (!rate.ok) return badRequest("Too many uploads. Please try again later.", 429);
 
@@ -24,13 +30,14 @@ export async function POST(request: Request) {
       if (settings.memorySubmissionsOpen !== "true") return badRequest("Memory uploads are not open to guests right now.", 403);
     }
     if (!blobConfigured()) return badRequest("Photo storage is not configured yet. Please ask the organizer to set up Vercel Blob.", 503);
-    if (!prisma) return badRequest("Database is not configured.", 503);
 
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) return badRequest("Please choose an image.");
     const imageCheck = validateImage(file);
     if (!imageCheck.ok) return badRequest(imageCheck.error);
+    const contentCheck = await validateImageContent(file);
+    if (!contentCheck.ok) return badRequest(contentCheck.error);
 
     const meta = photoMetaSchema.parse({
       caption: form.get("caption") ?? "",
