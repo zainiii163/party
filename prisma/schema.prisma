@@ -1,0 +1,285 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Attendance {
+  YES
+  MAYBE
+  NO
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PollStatus {
+  OPEN
+  CLOSED
+}
+
+model Event {
+  id            String   @id @default("main")
+  title         String   @default("Cousins Winter Reunion 2026")
+  eventDate     DateTime?
+  startTime     String   @default("4:00 PM")
+  endTime       String   @default("10:00 PM")
+  venue         String?
+  location      String?
+  dressCode     String   @default("Cozy winter layers with a touch of gold")
+  hostMessage   String   @default("We cannot wait to have everyone together under one roof. Bring your laughter, your appetite and your favourite stories!")
+  description   String   @default("A warm winter celebration of family, food, games and memories that will stay with us for years.")
+  heroLine      String   @default("The Winter Feels Warmer When We're Together.")
+  subheading    String   @default("One Family. Endless Memories. One Unforgettable Winter Reunion.")
+  updatedAt     DateTime @updatedAt
+  scheduleItems EventScheduleItem[]
+  decisions     PlanningDecision[]
+}
+
+model EventScheduleItem {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  time      String
+  title     String
+  note      String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([eventId, order])
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String   @default("Organizer")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  sessions     AdminSession[]
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  adminId   String
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+}
+
+model Participant {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  rsvp      Rsvp?
+  pollVotes PollVote[]
+  awardVotes AwardVote[]
+  guestbookEntries GuestbookMessage[]
+}
+
+model Rsvp {
+  id                 String     @id @default(cuid())
+  participantId      String     @unique
+  participant        Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  fullName           String
+  nickname           String
+  attendance         Attendance
+  guests             Int        @default(0)
+  favoriteFood       String?
+  preferredActivity  String?
+  message            String?
+  whatsapp           String?
+  consentPublic      Boolean    @default(false)
+  manageTokenHash    String     @unique
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([attendance, consentPublic])
+  @@index([createdAt])
+}
+
+model Suggestion {
+  id          String          @id @default(cuid())
+  submitter   String
+  category    String
+  title       String
+  description String
+  status      ModerationStatus @default(PENDING)
+  selected    Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  votes       SuggestionVote[]
+
+  @@index([status, category])
+  @@index([createdAt])
+}
+
+model SuggestionVote {
+  id           String     @id @default(cuid())
+  suggestionId String
+  suggestion   Suggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  visitorId    String
+  createdAt    DateTime   @default(now())
+
+  @@unique([suggestionId, visitorId])
+  @@index([visitorId])
+}
+
+model Poll {
+  id        String      @id @default(cuid())
+  question  String
+  category  String?
+  status    PollStatus  @default(OPEN)
+  multiple  Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  options   PollOption[]
+  votes     PollVote[]
+
+  @@index([status])
+}
+
+model PollOption {
+  id       String     @id @default(cuid())
+  pollId   String
+  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  label    String
+  order    Int        @default(0)
+  votes    PollVote[]
+
+  @@index([pollId, order])
+}
+
+model PollVote {
+  id            String     @id @default(cuid())
+  pollId        String
+  poll          Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId      String
+  option        PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([pollId, optionId, participantId])
+  @@index([pollId, participantId])
+}
+
+model AwardCategory {
+  id        String       @id @default(cuid())
+  title     String
+  emoji     String       @default("✨")
+  description String?
+  active    Boolean      @default(false)
+  revealed  Boolean      @default(false)
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+  nominees  AwardNominee[]
+  votes     AwardVote[]
+
+  @@index([active, order])
+}
+
+model AwardNominee {
+  id         String        @id @default(cuid())
+  categoryId String
+  category   AwardCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name       String
+  note       String?
+  createdAt  DateTime      @default(now())
+  votes      AwardVote[]
+
+  @@index([categoryId])
+}
+
+model AwardVote {
+  id            String        @id @default(cuid())
+  categoryId    String
+  category      AwardCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  nomineeId     String
+  nominee       AwardNominee  @relation(fields: [nomineeId], references: [id], onDelete: Cascade)
+  participantId String
+  participant   Participant   @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([categoryId, participantId])
+  @@index([categoryId, nomineeId])
+}
+
+model MemoryCategory {
+  id    String        @id @default(cuid())
+  name  String        @unique
+  order Int           @default(0)
+  photos MemoryPhoto[]
+}
+
+model MemoryPhoto {
+  id          String          @id @default(cuid())
+  categoryId  String?
+  category    MemoryCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  imageUrl    String
+  blurUrl     String?
+  caption     String
+  uploader    String?
+  status      ModerationStatus @default(PENDING)
+  createdAt   DateTime        @default(now())
+
+  @@index([status, categoryId])
+}
+
+model GuestbookMessage {
+  id            String          @id @default(cuid())
+  participantId String?
+  participant   Participant?    @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  nickname      String
+  message       String
+  status        ModerationStatus @default(PENDING)
+  createdAt     DateTime        @default(now())
+
+  @@index([status, createdAt])
+}
+
+model PlanningDecision {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  key         String
+  label       String
+  value       String?
+  status      String   @default("Pending")
+  order       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([eventId, key])
+}
+
+model WheelActivity {
+  id       String   @id @default(cuid())
+  label    String
+  enabled  Boolean  @default(true)
+  order    Int      @default(0)
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model RateLimitEvent {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
