@@ -21,6 +21,8 @@
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/playfair-display": "^5.3.0",
     "@hookform/resolvers": "^7.0.8",
+    "@neon/config": "^1.14.6",
+    "@neon/env": "^2.1.9",
     "@neondatabase/serverless": "^1.2.1",
     "@prisma/adapter-neon": "^6.19.3",
     "@prisma/client": "^6.19.3",
@@ -48,6 +50,10 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.1",
     "zod": "^4.6.7"
+  },
+  "overrides": {
+    "postcss": "8.5.33",
+    "zod": "$zod"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

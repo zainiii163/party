@@ -156,14 +156,11 @@ Playwright specs live in `tests/e2e/public.spec.ts` and cover navigation, the in
 
 ## 9. Current external blockers
 
-No real Neon/Vercel credentials or deployment authorization were provided, so:
+The Neon production database is connected, migrated, seeded and has an organizer account. Remaining items before going live:
 
-- No remote database migration, seed or admin account creation was executed.
-- No photos can be uploaded until `BLOB_READ_WRITE_TOKEN` is configured.
-- The site has **not** been deployed and no live URL is claimed.
-- Poll/suggestion/award data is empty until the database is connected and seeded.
-
-All code, migrations, configuration templates and documentation are complete and ready for those credentials.
+- Set the Vercel production environment variables (see `DEPLOYMENT_CHECKLIST.md`), especially `SESSION_SECRET`, `NEXT_PUBLIC_SITE_URL` and the pooled/direct Neon URLs.
+- Create a private Vercel Blob store and set `BLOB_READ_WRITE_TOKEN` if photo uploads are required.
+- Push and deploy only after explicit approval; no live URL is claimed yet.
 
 ---
 
